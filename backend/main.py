@@ -74,3 +74,81 @@ def get_portfolio(user_id: int, db: Session = Depends(get_db)):
         }
 
     return result
+
+@app.get("/pnl/{user_id}")
+def get_pnl(user_id: int, current_price: float, db: Session = Depends(get_db)):
+    trades = db.query(models.Trade).filter(
+        models.Trade.user_id == user_id
+    ).all()
+
+    result = {}
+
+    for trade in trades:
+        if trade.commodity not in result:
+            result[trade.commodity] = {
+                "net_lots": 0,
+                "buy_value": 0.0,
+                "sell_value": 0.0
+            }
+
+        if trade.side == "BUY":
+            result[trade.commodity]["net_lots"] += trade.lots
+            result[trade.commodity]["buy_value"] += trade.price * trade.lots
+        else:
+            result[trade.commodity]["net_lots"] -= trade.lots
+            result[trade.commodity]["sell_value"] += trade.price * trade.lots
+
+    pnl_output = {}
+
+    for commodity, data in result.items():
+        pnl = (
+            (current_price * data["net_lots"]) +
+            data["sell_value"] -
+            data["buy_value"]
+        )
+
+        pnl_output[commodity] = {
+            "net_lots": data["net_lots"],
+            "unrealized_pnl": pnl
+        }
+
+    return pnl_output
+
+@app.get("/pnl/{user_id}")
+def get_pnl(user_id: int, current_price: float, db: Session = Depends(get_db)):
+    trades = db.query(models.Trade).filter(
+        models.Trade.user_id == user_id
+    ).all()
+
+    summary = {}
+
+    for trade in trades:
+        if trade.commodity not in summary:
+            summary[trade.commodity] = {
+                "net_lots": 0,
+                "buy_value": 0.0,
+                "sell_value": 0.0
+            }
+
+        if trade.side == "BUY":
+            summary[trade.commodity]["net_lots"] += trade.lots
+            summary[trade.commodity]["buy_value"] += trade.price * trade.lots
+        else:
+            summary[trade.commodity]["net_lots"] -= trade.lots
+            summary[trade.commodity]["sell_value"] += trade.price * trade.lots
+
+    pnl_result = {}
+
+    for commodity, data in summary.items():
+        pnl = (
+            (current_price * data["net_lots"]) +
+            data["sell_value"] -
+            data["buy_value"]
+        )
+
+        pnl_result[commodity] = {
+            "net_lots": data["net_lots"],
+            "unrealized_pnl": pnl
+        }
+
+    return pnl_result
